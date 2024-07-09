@@ -1,0 +1,28 @@
+// copied over from PydanticOutputParser's get_format_instructions
+{    
+    "properties" : {
+       "cities" : {
+          "description" : "list of recommended town or city names",
+          "items" : {
+             "type" : "string"
+          },
+          "title" : "Cities",
+          "type" : "array"
+       },
+       "reason" : {
+          "description" : "list of reasons for recommending each town or city",
+          "items" : {
+             "items" : {
+                "type" : "string"
+             },
+             "type" : "array"
+          },
+          "title" : "Reason",
+          "type" : "array"
+       }
+    },
+    "required" : [
+       "cities",
+       "reason"
+    ]
+ }
