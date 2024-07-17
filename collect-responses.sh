@@ -1,2 +1,2 @@
-export OPENAI_API_KEY=$(cat openrouter.api.secret)
+export OPENROUTER_API_KEY=$(cat shiran.api.secret)
 python collect-responses.py
