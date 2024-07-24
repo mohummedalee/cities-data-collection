@@ -1,0 +1,5 @@
+- "Hello All" -> "Hello" --- removing personal pronouns for the reddit community
+- "you guys" -> "you" --- removing personal pronouns for the reddit community
+- "anybody reading this" -> "" --- removing community-specific language
+- "Hey y'all" -> "Hey"
+- "Edit: <additional demographic info>" -> removed "Edit:" since that is Reddit-specific language
