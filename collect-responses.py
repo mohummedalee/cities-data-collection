@@ -1,25 +1,32 @@
 from langchain_openai import ChatOpenAI
 from typing import *
 from langchain.prompts import PromptTemplate
-from langchain.output_parsers import StructuredOutputParser, PydanticOutputParser
+from langchain.output_parsers import PydanticOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.exceptions import OutputParserException
+import argparse
 
 from os import getenv
+import csv
 import re
 import pandas as pd
 import logging
 
-logfile = 'collection.log'
-log_max_str_len = 15
-logging.basicConfig(level=logging.INFO, encoding='utf-8')
 
+# === logging config ===
+log_max_str_len = 20
+logging.basicConfig(level=logging.INFO, encoding='utf-8')
 
 # === basic data collection config ===
 API_URL = "https://openrouter.ai/api/v1"
 models = {
-    'gemma': "google/gemma-7b-it:free",
-    'mistral': 'mistralai/mistral-7b-instruct:free',
+    'mistral': 'mistralai/mistral-7b-instruct',
+    'gemma': "google/gemma-7b-it",    
+    'anthropic': 'anthropic/claude-3.5-sonnet:beta',
+    'llama': 'meta-llama/llama-3.1-405b-instruct',
+    'gpt4o': 'openai/gpt-4o',
+    'gpt35': 'openai/gpt-3.5-turbo',
+    'nvidia': 'nvidia/nemotron-4-340b-instruct',
 }
 
 # === load prompts ===
@@ -36,42 +43,69 @@ class CitiesResponse(BaseModel):
     reasons: List[List[str]] = Field(description="for each city/town in `cities`, a list of reasons for recommending the town")
 city_parser = PydanticOutputParser(pydantic_object=CitiesResponse)
 
+additional_format_instructions = "Please do not provide any text in addition to the specified JSON response format. Please do not add formatting or indentation to the JSON response. Please do not use double quotation marks (\") in your response."
 prompt_template = PromptTemplate(
-    template="{query}\nCan you recommend 5 cities or towns with multiple reasons for each recommendation?\n{format_instructions}",
+    template="{query}\nCan you recommend 5 cities or towns with multiple reasons for each recommendation?\n\n{format_instructions}\n{additional_format_instructions}",
     input_variables=["query"],
-    partial_variables={"format_instructions": city_parser.get_format_instructions(), "pattern": re.compile(r"\`\`\`\n\`\`\`")},
+    partial_variables={
+        "format_instructions": city_parser.get_format_instructions(),        
+        "additional_format_instructions": additional_format_instructions,
+        # pattern to remove extra code blocks
+        "pattern": re.compile(r"\`\`\`\n\`\`\`")
+    },
 )
 
+# === config for data collection ===
 TEMP = 0
 N_SAMPLES = 3
-all_responses = []
+parser = argparse.ArgumentParser()
+parser.add_argument("--model", type=str, required=True, choices=models.keys(), help="model to use for data collection")
+args = parser.parse_args()
+mname = args.model
+OUTFILE = f'{mname}.csv'
 
+# === save responses to csv as you go ===
+writer = csv.writer(open(f"responses/{OUTFILE}", 'w'))
+header = ["pid", "model", "situation", "prompt", "rec_city1", "rec_reasons1", "rec_city2", "rec_reasons2", "..."]
+writer.writerow(header)
+
+if not getenv("OPENROUTER_API_KEY"):
+    raise Exception("Please set the OPENROUTER_API_KEY environment variable via `export OPENROUTER_API_KEY=<api-key>`")
+
+# === collect responses ===
 prompt_id = 1
-for mname in models:
-    model = ChatOpenAI(
-        model=models[mname],
-        temperature=TEMP,
-        openai_api_key=getenv("OPENROUTER_API_KEY"),
-        openai_api_base = API_URL,
-    )
-    chain = prompt_template | model | city_parser
-    for sit in situation_prompts:
-        for prompt in situation_prompts[sit]:
-            samples = 0
-            while samples < N_SAMPLES:                
-                try:
-                    response = chain.invoke({"query": prompt})
-                except OutputParserException as e:
-                    logging.warning(f"Ill formed response: {e}; trying again")
-                    continue
+model = ChatOpenAI(
+    model=models[mname],
+    temperature=TEMP,
+    openai_api_key=getenv("OPENROUTER_API_KEY"),
+    openai_api_base = API_URL,
+)
+chain = prompt_template | model | city_parser
+for sit in situation_prompts:
+    for prompt in situation_prompts[sit]:
+        samples = 0
+        while samples < N_SAMPLES:                
+            try:
+                logging.info(f"\tQUERY --- prompt ID: {prompt_id}; prompt: {prompt[:log_max_str_len]}...; model: {mname}; situation: {sit}")
+                response = chain.invoke({"query": prompt})
+            except OutputParserException as e:
+                # error check 1 -- ill-formed output
+                breakpoint()
+                logging.warning(f"Ill formed response: {e}; trying again")
+                prompt += "\nYour output format was incorrect earlier. Please precisely adhere to the JSON format instructions."
+                continue
+            # error check 2 -- reasons not provided for all cities
+            if len(response.cities) != len(response.reasons):
+                logging.warning(f"Response has unequal number of cities and reasons; trying again")
+                prompt += "\nYou did not provide reasons for some of your recommendations. Please list reasons for recommending each city/town."
+                continue
 
-                samples += 1
-                logging.info(f"""prompt ID: {prompt_id}; prompt: {prompt[:log_max_str_len]}...; model: {mname}; situation: {sit}; cities: {response.cities}""")
-                # normalize dataframe i.e., only one reason per row
-                for i, city in enumerate(response.cities):
-                    for j, reason in enumerate(response.reasons[i]):
-                        all_responses.append([prompt_id, mname, sit, prompt, city, reason])
-                prompt_id += 1
-
-df = pd.DataFrame(all_responses, columns=["pid", "model", "situation", "prompt", "rec_cities", "rec_reasons"])
-df.to_csv("responses/gemma-mistral.csv", index=False)
+            samples += 1
+            logging.info(f"""\tRESPONSE --- cities: {response.cities}; reasons: {response.reasons}""")
+            # normalize dataframe i.e., only one reason per row
+            row = [prompt_id, mname, sit]
+            for i, city in enumerate(response.cities):
+                row.append(city)
+                row.append(';'.join(response.reasons[i]))
+                    
+            prompt_id += 1        
