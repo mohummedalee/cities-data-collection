@@ -3,7 +3,6 @@ from typing import *
 from langchain.prompts import PromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
-from langchain_core.exceptions import OutputParserException
 import argparse
 
 from os import getenv
@@ -11,6 +10,10 @@ import csv
 import re
 import pandas as pd
 import logging
+
+# error handling
+from langchain_core.exceptions import OutputParserException
+from json.decoder import JSONDecodeError
 
 
 # === logging config ===
@@ -43,7 +46,7 @@ class CitiesResponse(BaseModel):
     reasons: List[List[str]] = Field(description="for each city/town in `cities`, a list of reasons for recommending the town")
 city_parser = PydanticOutputParser(pydantic_object=CitiesResponse)
 
-additional_format_instructions = "Please do not provide any text in addition to the specified JSON response format. Please do not add formatting or indentation to the JSON response. Please do not use double quotation marks (\") in your response."
+additional_format_instructions = "Please do not provide any text in addition to the specified JSON response format. Please do not add formatting or indentation to the JSON response."
 prompt_template = PromptTemplate(
     template="{query}\nCan you recommend 5 cities or towns with multiple reasons for each recommendation?\n\n{format_instructions}\n{additional_format_instructions}",
     input_variables=["query"],
@@ -66,7 +69,13 @@ OUTFILE = f'{mname}.csv'
 
 # === save responses to csv as you go ===
 writer = csv.writer(open(f"responses/{OUTFILE}", 'w'))
-header = ["pid", "model", "situation", "prompt", "rec_city1", "rec_reasons1", "rec_city2", "rec_reasons2", "..."]
+header = ["pid", "model", "situation", "prompt",
+          "rec_city1", "rec_reasons1",
+          "rec_city2", "rec_reasons2",
+          "rec_city3", "rec_reasons3",
+          "rec_city4", "rec_reasons4",
+          "rec_city5", "rec_reasons5"
+          ]
 writer.writerow(header)
 
 if not getenv("OPENROUTER_API_KEY"):
@@ -88,24 +97,24 @@ for sit in situation_prompts:
             try:
                 logging.info(f"\tQUERY --- prompt ID: {prompt_id}; prompt: {prompt[:log_max_str_len]}...; model: {mname}; situation: {sit}")
                 response = chain.invoke({"query": prompt})
-            except OutputParserException as e:
+            except (OutputParserException, JSONDecodeError) as e:
                 # error check 1 -- ill-formed output
-                breakpoint()
-                logging.warning(f"Ill formed response: {e}; trying again")
+                logging.error(f"Ill formed response: {e}; trying again")
                 prompt += "\nYour output format was incorrect earlier. Please precisely adhere to the JSON format instructions."
                 continue
             # error check 2 -- reasons not provided for all cities
             if len(response.cities) != len(response.reasons):
-                logging.warning(f"Response has unequal number of cities and reasons; trying again")
+                logging.error(f"Response has unequal number of cities and reasons; trying again")
                 prompt += "\nYou did not provide reasons for some of your recommendations. Please list reasons for recommending each city/town."
                 continue
 
             samples += 1
             logging.info(f"""\tRESPONSE --- cities: {response.cities}; reasons: {response.reasons}""")
             # normalize dataframe i.e., only one reason per row
-            row = [prompt_id, mname, sit]
+            row = [prompt_id, mname, sit, prompt]
             for i, city in enumerate(response.cities):
                 row.append(city)
                 row.append(';'.join(response.reasons[i]))
-                    
-            prompt_id += 1        
+            
+            writer.writerow(row)                    
+            prompt_id += 1
