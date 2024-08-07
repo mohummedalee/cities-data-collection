@@ -5,6 +5,7 @@ from langchain.output_parsers import PydanticOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 import argparse
 
+import os
 from os import getenv
 import csv
 import re
@@ -32,14 +33,6 @@ models = {
     'nvidia': 'nvidia/nemotron-4-340b-instruct',
 }
 
-# === load prompts ===
-situations = ['relocation', 'tourism', 'opening_business']
-# load prompts for each situation
-situation_prompts = {}
-for sit in situations:
-    df = pd.read_csv(f"prompts/{sit}.csv")
-    situation_prompts[sit] = df['text'].tolist()
-
 # === set up prompt template and output parser ===
 class CitiesResponse(BaseModel):
     cities: List[str] = Field(description="list of recommended town or city names")
@@ -58,24 +51,40 @@ prompt_template = PromptTemplate(
     },
 )
 
-# === config for data collection ===
+# === config for data collection, mostly as arguments ===
 TEMP = 0
-N_SAMPLES = 3
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=str, required=True, choices=models.keys(), help="model to use for data collection")
+parser.add_argument("--prompt-type", type=str, required=True,
+                    choices=['generic', 'no-constraint', 'single-constraint'],
+                    help="folder to read prompts from")
+parser.add_argument("--n_samples", type=int, required=False, default=3, help="number of samples to collect per prompt per model")
 args = parser.parse_args()
 mname = args.model
-OUTFILE = f'{mname}.csv'
+N_SAMPLES = args.n_samples
+prompt_type = args.prompt_type
+OUTFILE = f'{prompt_type}/{mname}.csv'
+if prompt_type not in os.listdir("responses"):
+    os.mkdir(f"responses/{prompt_type}")
+
+# === load prompts ===
+situations = ['relocation', 'tourism', 'opening_business']
+# load prompts for each situation
+situation_prompts = {}
+for sit in situations:
+    df = pd.read_csv(f"prompts/{prompt_type}/{sit}.csv")
+    situation_prompts[sit] = df['text'].tolist()
 
 # === save responses to csv as you go ===
 writer = csv.writer(open(f"responses/{OUTFILE}", 'w'))
-header = ["pid", "model", "situation", "prompt",
-          "rec_city1", "rec_reasons1",
-          "rec_city2", "rec_reasons2",
-          "rec_city3", "rec_reasons3",
-          "rec_city4", "rec_reasons4",
-          "rec_city5", "rec_reasons5"
-          ]
+header = [
+    "pid", "model", "situation", "prompt",
+    "rec_city1", "rec_reasons1",
+    "rec_city2", "rec_reasons2",
+    "rec_city3", "rec_reasons3",
+    "rec_city4", "rec_reasons4",
+    "rec_city5", "rec_reasons5"
+]
 writer.writerow(header)
 
 if not getenv("OPENROUTER_API_KEY"):
