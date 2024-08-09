@@ -3,18 +3,19 @@ from pydantic import BaseModel, validator, ValidationError
 
 # Define the Pydantic model
 class DataFrameSchema(BaseModel):
-    system: str
-    query: str
-    city_1_name: str
-    city_1_rec: str
-    city_2_name: str
-    city_2_rec: str
-    city_3_name: str
-    city_3_rec: str
-    city_4_name: str
-    city_4_rec: str
-    city_5_name: str
-    city_5_rec: str
+    model: str
+    situation: str
+    prompt: str
+    rec_city1: str
+    rec_reasons1: str
+    rec_city2: str
+    rec_reasons2: str
+    rec_city3: str
+    rec_reasons3: str
+    rec_city4: str
+    rec_reasons4: str
+    rec_city5: str
+    rec_reasons5: str
     
     @validator('*')
     def check_is_string(cls, v):
@@ -25,9 +26,9 @@ class DataFrameSchema(BaseModel):
 # Function to validate the DataFrame
 def validate_dataframe(df: pd.DataFrame):
     # Check if the dataframe has the right columns
-    required_columns = {"system", "query", "city 1 name", "city 1 rec", \
-                        "city 2 name", "city 2 rec", "city 3 name", "city 3 rec", "city 4 name", "city 4 rec"\
-                            "city 5 name", "city 5 rec"}
+    required_columns = {"model", "situation", "prompt", "rec_city1", "rec_reasons1", \
+                        "rec_city2", "rec_reasons2", "rec_city3", "rec_reasons3", "rec_city4", "rec_reasons4"\
+                            "rec_city5", "rec_reasons5"}
     if set(df.columns) != required_columns:
         raise ValueError(f"DataFrame must contain the columns: {required_columns}")
 
@@ -35,36 +36,38 @@ def validate_dataframe(df: pd.DataFrame):
     for idx, row in df.iterrows():
         try:
             DataFrameSchema(
-                system=row['system'],
-                query=row['query'],
-                city_1_name=row['city 1 name'],
-                city_1_rec=row['city 1 rec'],
-                city_1_name=row['city 2 name'],
-                city_1_rec=row['city 2 rec'],
-                city_1_name=row['city 3 name'],
-                city_1_rec=row['city 3 rec'],
-                city_1_name=row['city 4 name'],
-                city_1_rec=row['city 4 rec'],
-                city_1_name=row['city 5 name'],
-                city_1_rec=row['city 5 rec']
+                model=row['model'],
+                situation=row['situation'],
+                prompt=row['prompt'],
+                rec_city1=row['rec_city1'],
+                city_1_rec=row['rec_reasons1'],
+                city_1_name=row['rec_city2'],
+                city_1_rec=row['rec_reasons2'],
+                city_1_name=row['rec_city3'],
+                city_1_rec=row['rec_reasons3'],
+                city_1_name=row['rec_city4'],
+                city_1_rec=row['rec_reasons4'],
+                city_1_name=row['rec_city5'],
+                city_1_rec=row['rec_reasons5']
             )
         except ValidationError as e:
             print(f"Row {idx} is invalid: {e}")
 
 # Example DataFrame
 data = {
-    "system": ["sys1", "sys2", "sys3"],
-    "query": ["query1", "query2", "query3"],
-    "city 1 name": ["city1", "city2", "city3"],
-    "city 1 rec": ["rec1", "rec2", "rec3"],
-    "city 2 name": ["city1", "city2", "city3"],
-    "city 2 rec": ["rec1", "rec2", "rec3"],
-    "city 3 name": ["city1", "city2", "city3"],
-    "city 3 rec": ["rec1", "rec2", "rec3"],
-    "city 4 name": ["city1", "city2", "city3"],
-    "city 4 rec": ["rec1", "rec2", "rec3"],
-    "city 5 name": ["city1", "city2", "city3"],
-    "city 5 rec": ["rec1", "rec2", "rec3"]
+    "model": ["sys1", "sys2", "sys3"],
+    "situation": ["sit1", "sit2", "sit3"],
+    "prompt": ["query1", "query2", "query3"],
+    "rec_city1": ["city1", "city2", "city3"],
+    "rec_reasons1": ["rec1", "rec2", "rec3"],
+    "rec_city2": ["city1", "city2", "city3"],
+    "rec_reasons2": ["rec1", "rec2", "rec3"],
+    "rec_city3": ["city1", "city2", "city3"],
+    "rec_reasons3": ["rec1", "rec2", "rec3"],
+    "rec_city4": ["city1", "city2", "city3"],
+    "rec_reasons4": ["rec1", "rec2", "rec3"],
+    "rec_city5": ["city1", "city2", "city3"],
+    "rec_reasons5": ["rec1", "rec2", "rec3"]
 }
 df = pd.DataFrame(data)
 
