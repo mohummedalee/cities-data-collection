@@ -24,8 +24,9 @@ logging.basicConfig(level=logging.INFO, encoding='utf-8')
 # === basic data collection config ===
 API_URL = "https://openrouter.ai/api/v1"
 models = {
-    'mistral': 'mistralai/mistral-7b-instruct',
-    'gemma': "google/gemma-7b-it",    
+    'mistral': 'mistralai/mistral-nemo',
+    'gemma': 'google/gemma-7b-it',
+    'gemini': 'google/gemini-pro-1.5-exp',
     'anthropic': 'anthropic/claude-3.5-sonnet:beta',
     'llama': 'meta-llama/llama-3.1-405b-instruct',
     'gpt4o': 'openai/gpt-4o',
@@ -101,6 +102,7 @@ model = ChatOpenAI(
 chain = prompt_template | model | city_parser
 for sit in situation_prompts:
     for prompt in situation_prompts[sit]:
+        orig_prompt = prompt
         samples = 0
         while samples < N_SAMPLES:                
             try:
@@ -120,7 +122,7 @@ for sit in situation_prompts:
             samples += 1
             logging.info(f"""\tRESPONSE --- cities: {response.cities}; reasons: {response.reasons}""")
             # normalize dataframe i.e., only one reason per row
-            row = [prompt_id, mname, sit, prompt]
+            row = [prompt_id, mname, sit, orig_prompt]
             for i, city in enumerate(response.cities):
                 row.append(city)
                 row.append(';'.join(response.reasons[i]))
