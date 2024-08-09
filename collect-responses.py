@@ -57,7 +57,7 @@ TEMP = 0
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=str, required=True, choices=models.keys(), help="model to use for data collection")
 parser.add_argument("--prompt-type", type=str, required=True,
-                    choices=['generic', 'no-constraint', 'single-constraint'],
+                    choices=['authentic', 'generic', 'single-constraint'],
                     help="folder to read prompts from")
 parser.add_argument("--n_samples", type=int, required=False, default=3, help="number of samples to collect per prompt per model")
 args = parser.parse_args()
