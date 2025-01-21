@@ -1,4 +1,4 @@
-export OPENROUTER_API_KEY=$(cat shiran.api.secret)
+export OPENROUTER_API_KEY=$(cat api.secret)
 
 if [ $# -eq 0 ]; then
     echo "No arguments provided. Please add model name via: ./collect-responses.sh <model-name>"
