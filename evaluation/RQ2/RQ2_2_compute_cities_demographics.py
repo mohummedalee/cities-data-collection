@@ -6,10 +6,10 @@ from parallel_utility_llm import dataframe_results, dataframe_results_sensitive
 import sys
 
 
-prefix = '/Users/shirandudy/Documents/Documents_new/NEU/projects/cities_representation/'
-relevant_pre = prefix+'relevant_db/'
+prefix = path_to_llm_responses_csv_file
+relevant_pre = prefix+'relevant_db/' # path to the relevant sets created for ground truth
 mode = 'sg'
-mode1 = 'sensitive'
+mode1 = 'sensitive' # sensitive indicates sensitivity to one group being larger or smaller than the other
 #mode1 = ''
 if mode == 'sg':
     sg_path = prefix+'code/all_models_single_constraint.csv'
@@ -88,15 +88,11 @@ for j, state in enumerate(states):
         for city in cities:
             town_data = state_df[state_df['city'] == city]
             town_count = pd.concat([town_count, town_data], axis=0)
-        if mode1 == 'sensitive':
+        if mode1 == 'sensitive': 
             results = t_test_sensitive(town_count, relevant_pre+relevant[state], prefix+'code/rq2_2/dicts/'+state+'_'+model+'_'+mode)
             df = dataframe_results_sensitive(results, df_parallel, j*len(models)+m, state, model) # domain
         else:
             results = t_test(town_count, relevant_pre+relevant[state], prefix+'code/rq2_2/dicts/'+state+'_'+model+'_'+mode)
             df = dataframe_results(results, df_parallel, j*len(models)+m, state, model) # domain
 
-#df.to_csv(prefix+'code/rq2_2/parallel_df_sensitive_llm.csv')
 df.to_csv(prefix+'code/rq2_2/parallel_df_model_'+mode+'_'+mode1+'.csv')
-
-    #towns_count = pd.DataFrame(list(town_counter.items()), columns=['city', 'num_of_recs'])
-    #towns_count = towns_count.sort_values(by='num_of_recs', ascending=False)
