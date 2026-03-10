@@ -1,5 +1,5 @@
 # IUI '25 Data and Analysis
-This repo contains code and data for [*Examining the Bias in Geographical Recommendations by Large Language Models*](https://m-ali.org/papers/iui-2025.pdf) (IUI '25, Honorable Mention).
+This repo contains code and data for [*Examining Bias in Geographical Recommendations by Large Language Models*](https://m-ali.org/papers/iui-2025.pdf) (IUI '25, Honorable Mention).
 
 - `prompts/` contains the prompts (Reddit-style or generic) used for data collection
 - `responses/` includes the responses for these prompts for the 6 LLMs studied in the paper
